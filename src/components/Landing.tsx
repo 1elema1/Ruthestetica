@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Minus, Play, Plus, ShoppingBag, Trash2, X, Images, MessageCircle } from 'lucide-react'
-import { useCatalog } from '../useCatalog'
+import { Sparkles, ShieldCheck, Clock, Minus, Play, Plus, ShoppingBag, Trash2, X, Images, MessageCircle } from 'lucide-react'
+import { orderedCategories, useCatalog } from '../useCatalog'
 import { money } from '../data'
 import type { Service } from '../types'
 import { Lightbox, MediaItem } from './MediaView'
@@ -18,7 +18,7 @@ export default function Landing() {
   const [choice, setChoice] = useState<Record<string, number>>({})
 
   const visible = services.filter((s) => s.visible !== false)
-  const cats = useMemo(() => [...new Set(visible.map((s) => s.category))], [visible])
+  const cats = useMemo(() => orderedCategories(visible, settings).filter((c) => visible.some((s) => s.category === c)), [visible, settings])
   const shown = cat === 'Todos' ? visible : visible.filter((s) => s.category === cat)
   const count = cart.reduce((a, l) => a + l.qty, 0)
   const total = cart.reduce((a, l) => a + l.qty * l.price, 0)
@@ -66,17 +66,40 @@ export default function Landing() {
         </div>
       </header>
 
-      <section className="relative overflow-hidden bg-[radial-gradient(ellipse_at_top,#1c1608,#050505_70%)] px-4 py-28 text-center">
-        <p className="mb-4 text-xs uppercase tracking-[0.4em] text-yellow-600">Estética profesional</p>
-        <h1 className="font-serif text-5xl leading-tight text-[#E5C158] md:text-7xl">Ruth Estética</h1>
-        <p className="mt-2 font-serif text-2xl italic text-gray-200 md:text-3xl">Resalta tu Mirada</p>
-        <p className="mx-auto mt-6 max-w-xl text-gray-400">Pestañas, cejas y técnicas de volumen con acabado de lujo, pensadas para tu estilo.</p>
-        <button onClick={() => go('servicios')} className="mt-10 rounded-full bg-gradient-to-r from-[#D4AF37] to-[#E5C158] px-8 py-3 font-medium text-black shadow-[0_0_30px_rgba(212,175,55,0.35)] transition hover:shadow-[0_0_45px_rgba(212,175,55,0.6)]">
-          Ver Servicios y Reservar
-        </button>
+      <section className="relative isolate overflow-hidden">
+        <img src="https://images.unsplash.com/photo-1674049406467-824ea37c7184?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1800" alt="Extensión de pestañas profesional" className="absolute inset-0 -z-20 h-full w-full object-cover" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black via-black/80 to-black/30" />
+        <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-[#050505] to-transparent" />
+        <div className="mx-auto max-w-6xl px-4 py-28 md:py-40">
+          <p className="mb-5 flex items-center gap-3 text-xs uppercase tracking-[0.4em] text-yellow-500"><span className="h-px w-10 bg-yellow-500" />Estética profesional</p>
+          <h1 className="font-serif text-6xl leading-[0.95] text-[#F9FAFB] md:text-8xl">Resalta <br /><span className="bg-gradient-to-r from-[#D4AF37] via-[#F3DC8B] to-[#D4AF37] bg-clip-text italic text-transparent">tu mirada</span></h1>
+          <p className="mt-6 max-w-md text-lg text-gray-300">Pestañas, cejas y técnicas de volumen con acabado de lujo, pensadas para tu estilo.</p>
+          <div className="mt-10 flex flex-wrap gap-3">
+            <button onClick={() => go('servicios')} className="rounded-full bg-gradient-to-r from-[#D4AF37] to-[#E5C158] px-8 py-3.5 font-medium text-black shadow-[0_0_30px_rgba(212,175,55,0.35)] transition hover:shadow-[0_0_50px_rgba(212,175,55,0.6)]">Ver Servicios y Reservar</button>
+            <button onClick={() => go('por-que')} className="rounded-full border border-white/25 px-8 py-3.5 text-white transition hover:border-yellow-500 hover:text-yellow-400">Conocer más</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="por-que" className="mx-auto grid max-w-6xl gap-4 px-4 py-16 md:grid-cols-3">
+        {[
+          [Sparkles, 'Acabado de lujo', 'Técnicas modernas y materiales premium para un resultado natural y duradero.'],
+          [ShieldCheck, 'Cuidado profesional', 'Higiene, productos de calidad y atención personalizada en cada sesión.'],
+          [Clock, 'Reservá en minutos', 'Armá tu pedido y enviá la reserva directo por WhatsApp.'],
+        ].map(([Icon, t, d]) => {
+          const I = Icon as typeof Sparkles
+          return (
+            <div key={t as string} className="rounded-2xl border border-yellow-600/20 bg-gradient-to-b from-white/[0.05] to-transparent p-6">
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-yellow-600/40 text-yellow-400"><I size={20} /></div>
+              <h3 className="font-serif text-xl text-[#F9FAFB]">{t as string}</h3>
+              <p className="mt-2 text-sm text-gray-400">{d as string}</p>
+            </div>
+          )
+        })}
       </section>
 
       <section id="servicios" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-24">
+        <div className="mb-10 text-center"><p className="text-xs uppercase tracking-[0.4em] text-yellow-600">Catálogo</p><h2 className="mt-2 font-serif text-4xl text-[#F9FAFB] md:text-5xl">Nuestros servicios</h2></div>
         <div className="mb-8 flex flex-wrap justify-center gap-2">
           {['Todos', ...cats].map((c) => (
             <button key={c} onClick={() => setCat(c)} className={`rounded-full border px-4 py-1.5 text-sm transition ${cat === c ? 'border-yellow-500 bg-yellow-500 text-black' : 'border-yellow-600/30 text-gray-300 hover:border-yellow-500'}`}>
@@ -88,7 +111,7 @@ export default function Landing() {
           {shown.map((s) => {
             const media = s.media ?? []
             return (
-              <article key={s.id} className="flex flex-col overflow-hidden rounded-2xl border border-yellow-600/30 bg-white/[0.04] backdrop-blur-md transition hover:border-yellow-500/60">
+              <article key={s.id} className="flex flex-col overflow-hidden rounded-2xl border border-yellow-600/25 bg-gradient-to-b from-white/[0.06] to-white/[0.02] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:border-yellow-500/60 hover:shadow-[0_10px_40px_-10px_rgba(212,175,55,0.25)]">
                 {media.length > 0 && (
                   <button onClick={() => setLightbox(s)} className="group relative aspect-[16/10] overflow-hidden bg-black">
                     <MediaItem m={media[0]} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
@@ -125,6 +148,8 @@ export default function Landing() {
       </section>
 
       <footer className="border-t border-yellow-600/20 py-8 text-center text-sm text-gray-500">
+        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-yellow-600/60 font-serif text-yellow-500">RB</div>
+        <p className="mb-2 font-serif text-lg text-yellow-500">Ruth Estética</p>
         © Ruth Estética · <a href="/admin" className="text-gray-600 hover:text-yellow-500">Admin</a>
       </footer>
 

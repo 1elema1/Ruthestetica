@@ -11,4 +11,4 @@ export type Service = {
   visible: boolean
   order: number
 }
-export type Settings = { whatsapp: string; banner: string }
+export type Settings = { whatsapp: string; banner: string; categories?: string[] }

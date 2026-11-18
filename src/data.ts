@@ -48,6 +48,7 @@ export const seedServices: Omit<Service, 'id'>[] = raw.map(([category, title, pr
 export const defaultSettings: Settings = {
   whatsapp: import.meta.env.VITE_WHATSAPP_PHONE || '5493510000000',
   banner: '',
+  categories: [],
 }
 
 export const money = (n: number) => '$' + n.toLocaleString('es-AR')

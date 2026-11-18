@@ -22,25 +22,24 @@ async function compressImage(file: File): Promise<string> {
   c.width = Math.round(img.width * scale)
   c.height = Math.round(img.height * scale)
   c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height)
-  let q = 0.8
-  let out = c.toDataURL('image/jpeg', q)
-  while (out.length > 700_000 && q > 0.3) out = c.toDataURL('image/jpeg', (q -= 0.1))
-  return out
+  return c.toDataURL('image/jpeg', 0.82)
 }
 
-// Guarda un archivo solo en Firestore. Imagenes: comprimidas dentro del propio servicio.
-// Videos: partidos en trozos en la coleccion "files".
+// Guarda un archivo solo en Firestore, partido en trozos en la coleccion "files"
+// (las imagenes se comprimen antes). El servicio solo guarda la referencia.
 export async function saveFile(file: File, onProgress?: (p: number) => void): Promise<Media> {
-  if (file.type.startsWith('image')) return { type: 'image', url: await compressImage(file) }
-  if (file.size > MAX_VIDEO_MB * 1024 * 1024) throw new Error(`El video supera ${MAX_VIDEO_MB} MB. Subilo a YouTube y pegá el link.`)
-  const data = (await toDataUrl(file)).split(',')[1]
+  const isImage = file.type.startsWith('image')
+  if (!isImage && !file.type.startsWith('video')) throw new Error('Formato no soportado: ' + file.name)
+  if (!isImage && file.size > MAX_VIDEO_MB * 1024 * 1024) throw new Error(`El video supera ${MAX_VIDEO_MB} MB. Subilo a YouTube y pegá el link.`)
+  const dataUrl = isImage ? await compressImage(file) : await toDataUrl(file)
+  const data = dataUrl.split(',')[1]
   const fileId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
   const n = Math.ceil(data.length / CHUNK)
   for (let i = 0; i < n; i++) {
     await addDoc(collection(db, 'files'), { fileId, index: i, data: data.slice(i * CHUNK, (i + 1) * CHUNK) })
     onProgress?.(Math.round(((i + 1) / n) * 100))
   }
-  return { type: 'video', url: '', fileId, mime: file.type || 'video/mp4' }
+  return { type: isImage ? 'image' : 'video', url: '', fileId, mime: isImage ? 'image/jpeg' : file.type || 'video/mp4' }
 }
 
 export async function deleteFile(m: Media) {
