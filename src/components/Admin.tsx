@@ -321,7 +321,7 @@ function Dashboard({ onExit }: { onExit: () => void }) {
         {(error || fErr) && (
           <div className="flex items-start gap-2 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
             <AlertTriangle size={18} className="mt-0.5 shrink-0" />
-            <div>{fErr || error}<p className="text-xs text-red-300/70">Revisá las reglas de Firestore (lectura y escritura) y tu conexión.</p></div>
+            <div>{fErr || error}<p className="text-xs text-red-300/70">Si persiste: verificá que Firestore esté creado en modo producción con reglas que permitan leer y escribir, y que tu conexión no bloquee firestore.googleapis.com.</p></div>
           </div>
         )}
         {flash && <div className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-200"><Check size={16} />{flash}</div>}
