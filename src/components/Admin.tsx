@@ -14,7 +14,6 @@ import {
   ArrowUp,
   Check,
   ChevronDown,
-  ChevronUp,
   Copy,
   ExternalLink,
   Eye,
@@ -747,14 +746,7 @@ function Categories({
                 onBlur={() => rename(c)}
               />
             ) : (
-              <span
-                onClick={() => {
-                  setEditing(c);
-                  setVal(c);
-                }}
-                className="flex-1 cursor-pointer truncate hover:text-yellow-300"
-                title="Clic para renombrar"
-              >
+              <span className="flex-1 truncate">
                 {c} <span className="text-xs text-gray-500">({count(c)})</span>
               </span>
             )}
@@ -1014,7 +1006,7 @@ function Dashboard({ onExit }: { onExit: () => void }) {
               Gestioná tus servicios, personalizá la portada y compartí tu formación profesional.
             </p>
           </div>
-          <a href="#contenido-web" className={btn}>
+          <a href="#contenido-web" className={`${btn} lg:hidden`}>
             <ImageIcon size={15} /> Personalizar mi web
           </a>
         </div>
@@ -1205,12 +1197,9 @@ function Dashboard({ onExit }: { onExit: () => void }) {
                       {s.visible === false && " · oculto"}
                     </p>
                   </div>
-                  <div
-                    className="flex items-center gap-2 text-gray-400"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  <div className="flex items-center gap-1.5 text-gray-400">
                     {!filtering && (
-                      <>
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                         <button
                           disabled={i === 0}
                           onClick={() => move(i, -1)}
@@ -1227,18 +1216,22 @@ function Dashboard({ onExit }: { onExit: () => void }) {
                         >
                           <ArrowDown size={15} />
                         </button>
-                      </>
+                      </div>
                     )}
                     <button
                       title={s.visible === false ? "Mostrar en el sitio" : "Ocultar del sitio"}
-                      onClick={() => toggleVisible(s)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleVisible(s);
+                      }}
                       className="rounded p-1 hover:bg-white/10 hover:text-white"
                     >
                       {s.visible === false ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
-                    <span className="flex items-center gap-1 rounded-lg border border-yellow-600/30 px-2.5 py-1 text-xs text-yellow-400 group-hover:border-yellow-500 group-hover:bg-yellow-500/10">
-                      Editar {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                    </span>
+                    <ChevronDown
+                      size={16}
+                      className="ml-1 text-yellow-500/70 transition group-hover:translate-y-0.5 group-hover:text-yellow-400"
+                    />
                   </div>
                 </div>
               );

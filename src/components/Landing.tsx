@@ -92,6 +92,21 @@ export default function Landing() {
   const shown = cat === "Todos" ? visible : visible.filter((s) => s.category === cat);
   const count = cart.reduce((a, l) => a + l.qty, 0);
   const total = cart.reduce((a, l) => a + l.qty * l.price, 0);
+  const hasCredentials = Boolean(
+    settings.credentials?.enabled && settings.credentials.items.length > 0,
+  );
+  const navSections = useMemo(() => {
+    const items: { id: string; label: string }[] = [];
+    if (hasCredentials && settings.credentials?.position === "start") {
+      items.push({ id: "formacion", label: "Formación" });
+    }
+    items.push({ id: "estudio", label: "El estudio" });
+    items.push({ id: "servicios", label: "Servicios" });
+    if (hasCredentials && settings.credentials?.position !== "start") {
+      items.push({ id: "formacion", label: "Formación" });
+    }
+    return items;
+  }, [hasCredentials, settings.credentials?.position]);
 
   const add = (s: Service) => {
     const o = s.options?.length ? s.options[choice[s.id] ?? 0] : null;
@@ -128,25 +143,31 @@ export default function Landing() {
       )}
       <header className="sticky top-0 z-40 border-b border-yellow-600/20 bg-black/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="flex items-center gap-3 text-left"
+            aria-label="Volver al inicio"
+          >
             <div className="flex h-10 w-10 items-center justify-center rounded-full border border-yellow-500 font-serif text-lg text-yellow-400">
               RB
             </div>
             <span className="hidden font-serif text-lg tracking-wide text-yellow-400 sm:block">
               Ruth Estética
             </span>
-          </div>
-          <nav className="hidden gap-5 text-sm text-gray-300 md:flex">
-            {cats.slice(0, 5).map((c) => (
+          </button>
+          <nav
+            aria-label="Secciones del sitio"
+            className="hidden gap-7 text-sm text-gray-300 md:flex"
+          >
+            {navSections.map((section) => (
               <button
-                key={c}
-                onClick={() => {
-                  setCat(c);
-                  go("servicios");
-                }}
-                className="hover:text-yellow-400"
+                key={section.id}
+                type="button"
+                onClick={() => go(section.id)}
+                className="transition hover:text-yellow-400"
               >
-                {c.replace(/ \(.*\)/, "")}
+                {section.label}
               </button>
             ))}
           </nav>
@@ -182,18 +203,13 @@ export default function Landing() {
           <p className="mt-6 max-w-md text-lg text-gray-300">
             Pestañas, cejas y técnicas de volumen con acabado de lujo, pensadas para tu estilo.
           </p>
-          <div className="mt-10 flex flex-wrap gap-3">
+          <div className="mt-10">
             <button
+              type="button"
               onClick={() => go("servicios")}
               className="rounded-full bg-gradient-to-r from-[#D4AF37] to-[#E5C158] px-8 py-3.5 font-medium text-black shadow-[0_0_30px_rgba(212,175,55,0.35)] transition hover:shadow-[0_0_50px_rgba(212,175,55,0.6)]"
             >
               Ver Servicios y Reservar
-            </button>
-            <button
-              onClick={() => go("por-que")}
-              className="rounded-full border border-white/25 px-8 py-3.5 text-white transition hover:border-yellow-500 hover:text-yellow-400"
-            >
-              Conocer más
             </button>
           </div>
         </div>
@@ -203,47 +219,65 @@ export default function Landing() {
         <CredentialsSection value={settings.credentials} />
       )}
 
-      <section id="por-que" className="mx-auto grid max-w-6xl gap-4 px-4 py-16 md:grid-cols-3">
-        {[
-          [
-            Sparkles,
-            "Acabado de lujo",
-            "Técnicas modernas y materiales premium para un resultado natural y duradero.",
-          ],
-          [
-            ShieldCheck,
-            "Cuidado profesional",
-            "Higiene, productos de calidad y atención personalizada en cada sesión.",
-          ],
-          [Clock, "Reservá en minutos", "Armá tu pedido y enviá la reserva directo por WhatsApp."],
-        ].map(([Icon, t, d]) => {
-          const I = Icon as typeof Sparkles;
-          return (
-            <div
-              key={t as string}
-              className="rounded-2xl border border-yellow-600/20 bg-gradient-to-b from-white/[0.05] to-transparent p-6"
-            >
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-yellow-600/40 text-yellow-400">
-                <I size={20} />
+      <section id="estudio" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-20">
+        <div className="mb-8 max-w-xl">
+          <p className="eyebrow">El estudio</p>
+          <h2 className="mt-3 font-serif text-3xl text-[#F9FAFB] md:text-4xl">
+            Una experiencia pensada al detalle
+          </h2>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {[
+            [
+              Sparkles,
+              "Acabado de lujo",
+              "Técnicas modernas y materiales premium para un resultado natural y duradero.",
+            ],
+            [
+              ShieldCheck,
+              "Cuidado profesional",
+              "Higiene, productos de calidad y atención personalizada en cada sesión.",
+            ],
+            [
+              Clock,
+              "Reservá en minutos",
+              "Armá tu pedido y enviá la reserva directo por WhatsApp.",
+            ],
+          ].map(([Icon, t, d]) => {
+            const I = Icon as typeof Sparkles;
+            return (
+              <div
+                key={t as string}
+                className="rounded-2xl border border-yellow-600/20 bg-gradient-to-b from-white/[0.05] to-transparent p-6"
+              >
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-yellow-600/40 text-yellow-400">
+                  <I size={20} />
+                </div>
+                <h3 className="font-serif text-xl text-[#F9FAFB]">{t as string}</h3>
+                <p className="mt-2 text-sm text-gray-400">{d as string}</p>
               </div>
-              <h3 className="font-serif text-xl text-[#F9FAFB]">{t as string}</h3>
-              <p className="mt-2 text-sm text-gray-400">{d as string}</p>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </section>
 
-      <section id="servicios" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-24">
+      <section id="servicios" className="mx-auto max-w-6xl scroll-mt-24 px-4 pb-24">
         <div className="mb-10 text-center">
           <p className="text-xs uppercase tracking-[0.4em] text-yellow-600">Catálogo</p>
           <h2 className="mt-2 font-serif text-4xl text-[#F9FAFB] md:text-5xl">
             Nuestros servicios
           </h2>
         </div>
-        <div className="mb-8 flex flex-wrap justify-center gap-2">
+        <div
+          role="group"
+          aria-label="Filtrar por categoría"
+          className="mb-8 flex flex-wrap justify-center gap-2"
+        >
           {["Todos", ...cats].map((c) => (
             <button
               key={c}
+              type="button"
+              aria-pressed={cat === c}
               onClick={() => setCat(c)}
               className={`rounded-full border px-4 py-1.5 text-sm transition ${
                 cat === c
