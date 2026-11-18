@@ -1,0 +1,10 @@
+{
+  "description": "Permite a los proveedores mostrar sus servicios con imágenes y videos de demostración para que los clientes conozcan mejor su trabajo.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
