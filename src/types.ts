@@ -1,28 +1,36 @@
 export type Media = {
-  url: string
-  type: 'image' | 'video'
-  fileId?: string
-  mime?: string
-  chunks?: number
-}
+  url: string;
+  type: "image" | "video";
+  fileId?: string;
+  mime?: string;
+  chunks?: number;
+};
 
-export type Option = { label: string; price: number }
+export type Option = { label: string; price: number };
 
 export type Service = {
-  id: string
-  category: string
-  title: string
-  description: string
-  price: number
-  options?: Option[]
-  media?: Media[]
-  visible: boolean
-  order: number
-}
+  id: string;
+  category: string;
+  title: string;
+  description: string;
+  price: number;
+  options?: Option[];
+  media?: Media[];
+  visible: boolean;
+  order: number;
+};
 
 export type Settings = {
-  whatsapp: string
-  banner: string
-  categories?: string[]
-  heroMedia?: Media | null
-}
+  whatsapp: string;
+  banner: string;
+  categories?: string[];
+  heroMedia?: Media | null;
+  credentials?: Credentials;
+};
+
+export type Credentials = {
+  enabled: boolean;
+  position: "start" | "end";
+  title: string;
+  items: { id: string; title: string; media: Media }[];
+};

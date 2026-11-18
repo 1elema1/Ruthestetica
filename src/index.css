@@ -1,7 +1,164 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500&display=swap');
-@import 'tailwindcss';
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500&display=swap");
+@import "tailwindcss";
 
 @theme {
-  --font-serif: 'Cormorant Garamond', serif;
-  --font-sans: 'Inter', sans-serif;
+  --font-serif: "Cormorant Garamond", serif;
+  --font-sans: "Inter", sans-serif;
+}
+
+@layer base {
+  body {
+    background: #050505;
+    color: #f5f2eb;
+    -webkit-font-smoothing: antialiased;
+  }
+  button:not(:disabled),
+  a,
+  select {
+    cursor: pointer;
+  }
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid #ddc487;
+    outline-offset: 4px;
+  }
+  ::selection {
+    background: #d4af3740;
+    color: #fff5d9;
+  }
+}
+
+@layer components {
+  .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.23em;
+    text-transform: uppercase;
+    color: #c8ab6b;
+  }
+  .site-shell {
+    background-image: radial-gradient(ellipse at 90% 45%, #b68a2010, transparent 50%);
+  }
+  .hero-section {
+    border-bottom: 1px solid #ba985d21;
+  }
+  .hero-section h1 {
+    letter-spacing: -0.035em;
+    text-shadow: 0 6px 35px #0005;
+  }
+  .service-card {
+    position: relative;
+    isolation: isolate;
+    box-shadow: 0 5px 18px #0003;
+    transition:
+      transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1),
+      border-color 0.4s,
+      box-shadow 0.4s;
+  }
+  .service-card::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(ellipse at top right, #d4af371a, transparent 70%);
+    transition: opacity 0.4s;
+  }
+  .service-card:focus-within {
+    border-color: #d4af3790;
+  }
+  .service-card img {
+    transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .credentials-section {
+    border-block: 1px solid #c3a36328;
+    background: radial-gradient(ellipse at top left, #c09a4210, transparent 60%), #0a0907;
+  }
+  .credential-card {
+    overflow: hidden;
+    border: 1px solid #c3a36338;
+    border-radius: 1rem;
+    background: #ffffff03;
+    transition:
+      transform 0.4s,
+      box-shadow 0.4s,
+      border-color 0.4s;
+  }
+  .deposit-notice {
+    border: 1px solid #c6a45c55;
+    background: linear-gradient(120deg, #c49c2920, #c49c2908);
+  }
+  .site-footer {
+    background: radial-gradient(ellipse at bottom, #b68a2012, transparent 65%);
+  }
+  .admin-panel {
+    border: 1px solid #b8a16e2e;
+    border-radius: 1rem;
+    background: linear-gradient(145deg, #ffffff07, #ffffff02), #0c0c0b;
+    padding: 1.25rem;
+    box-shadow: 0 8px 32px #0002;
+  }
+  .admin-intro {
+    border-bottom: 1px solid #b8a16e26;
+    padding-bottom: 2rem;
+  }
+  .admin-shell select {
+    color-scheme: dark;
+  }
+  .admin-shell input,
+  .admin-shell textarea,
+  .admin-shell select {
+    transition:
+      border-color 0.2s,
+      box-shadow 0.2s;
+  }
+  .admin-shell input:focus,
+  .admin-shell textarea:focus {
+    box-shadow: 0 0 0 3px #d4af3710;
+  }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .service-card:hover {
+    transform: translateY(-9px) rotate(-0.35deg);
+    border-color: #d4af3790;
+    box-shadow: 0 22px 45px -15px #b18b2335;
+  }
+  .service-card:hover::after {
+    opacity: 1;
+  }
+  .service-card:hover img {
+    transform: scale(1.06);
+  }
+  .credential-card:hover {
+    transform: translateY(-5px);
+    border-color: #d4af3780;
+    box-shadow: 0 15px 30px #0005;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+  .service-card,
+  .credential-card,
+  .service-card img,
+  .credential-card img {
+    transform: none !important;
+  }
 }

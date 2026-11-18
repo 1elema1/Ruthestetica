@@ -1,24 +1,54 @@
-import { useEffect, useMemo, useState } from 'react'
-import { addDoc, collection, deleteDoc, doc, setDoc, updateDoc, writeBatch } from 'firebase/firestore'
+import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle, ArrowDown, ArrowUp, Check, ChevronDown, ChevronUp, Copy, ExternalLink, Eye, EyeOff,
-  FolderPlus, Image as ImageIcon, Link as LinkIcon, Loader2, LogOut, Pencil, Plus, RefreshCw,
-  RotateCcw, Search, Star, Trash2, Upload, X,
-} from 'lucide-react'
-import { authReady, db, formatFirebaseError, withTimeout } from '../firebase'
-import { deleteFile, saveFile, useMediaSrc } from '../mediaStore'
-import { orderedCategories, useCatalog } from '../useCatalog'
-import { DEFAULT_HERO_IMAGE, money, seedServices } from '../data'
-import type { Media, Option, Service, Settings } from '../types'
-import { MediaItem } from './MediaView'
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  setDoc,
+  updateDoc,
+  writeBatch,
+} from "firebase/firestore";
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  FolderPlus,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  Loader2,
+  LogOut,
+  Pencil,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  Star,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
+import { authReady, db, formatFirebaseError, withTimeout } from "../firebase";
+import { deleteFile, saveFile, useMediaSrc } from "../mediaStore";
+import { orderedCategories, useCatalog } from "../useCatalog";
+import { DEFAULT_HERO_IMAGE, money, seedServices } from "../data";
+import type { Media, Option, Service, Settings } from "../types";
+import { MediaItem } from "./MediaView";
+import { CredentialsManager } from "./Credentials";
 
 const inp =
-  'w-full rounded-lg border border-white/15 bg-black/70 px-3 py-2 text-sm text-white outline-none transition focus:border-yellow-500'
+  "w-full rounded-lg border border-white/15 bg-black/70 px-3 py-2 text-sm text-white outline-none transition focus:border-yellow-500";
 const btn =
-  'inline-flex items-center justify-center gap-1.5 rounded-lg border border-yellow-600/40 px-3 py-1.5 text-sm text-yellow-400 transition hover:bg-yellow-500/10 disabled:opacity-40'
+  "inline-flex items-center justify-center gap-1.5 rounded-lg border border-yellow-600/40 px-3 py-1.5 text-sm text-yellow-400 transition hover:bg-yellow-500/10 disabled:opacity-40";
 const btnGold =
-  'inline-flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#E5C158] px-4 py-2 text-sm font-medium text-black transition hover:brightness-110 disabled:opacity-40'
-const card = 'rounded-2xl border border-yellow-600/20 bg-white/[0.03] p-4'
+  "inline-flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#E5C158] px-4 py-2 text-sm font-medium text-black transition hover:brightness-110 disabled:opacity-40";
+const card = "admin-panel rounded-2xl border border-yellow-600/20 bg-white/[0.03] p-4";
 
 const FIRESTORE_RULES_SNIPPET = `rules_version = '2';
 service cloud.firestore {
@@ -27,22 +57,26 @@ service cloud.firestore {
       allow read, write: if true;
     }
   }
-}`
+}`;
 
 function Login({ onOk }: { onOk: () => void }) {
-  const [pass, setPass] = useState('')
-  const [err, setErr] = useState('')
-  const expected = import.meta.env.VITE_ADMIN_PASSWORD
+  const [pass, setPass] = useState("");
+  const [err, setErr] = useState("");
+  const expected = import.meta.env.VITE_ADMIN_PASSWORD;
   return (
     <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top,#1c1608,#050505_70%)] p-4 text-white">
       <form
         onSubmit={(e) => {
-          e.preventDefault()
+          e.preventDefault();
           if (expected && pass === expected) {
-            sessionStorage.setItem('admin-ok', pass)
-            onOk()
+            sessionStorage.setItem("admin-ok", pass);
+            onOk();
           } else {
-            setErr(expected ? 'Contraseña incorrecta' : 'Falta configurar VITE_ADMIN_PASSWORD en tus variables de entorno')
+            setErr(
+              expected
+                ? "Contraseña incorrecta"
+                : "Falta configurar VITE_ADMIN_PASSWORD en tus variables de entorno",
+            );
           }
         }}
         className="w-full max-w-sm space-y-4 rounded-2xl border border-yellow-600/30 bg-white/5 p-8 backdrop-blur-md"
@@ -63,18 +97,18 @@ function Login({ onOk }: { onOk: () => void }) {
         <button className={`${btnGold} w-full py-2.5`}>Ingresar</button>
       </form>
     </div>
-  )
+  );
 }
 
 type DraftPayload = {
-  title: string
-  category: string
-  description: string
-  price: number
-  options: Option[]
-  media: Media[]
-  visible: boolean
-}
+  title: string;
+  category: string;
+  description: string;
+  price: number;
+  options: Option[];
+  media: Media[];
+  visible: boolean;
+};
 
 function InlineServiceForm({
   service,
@@ -84,96 +118,97 @@ function InlineServiceForm({
   onDuplicate,
   onDelete,
 }: {
-  service: Service | null
-  categories: string[]
-  onSave: (data: DraftPayload, removedMedia: Media[]) => Promise<void>
-  onCancel: () => void
-  onDuplicate?: () => void
-  onDelete?: () => void
+  service: Service | null;
+  categories: string[];
+  onSave: (data: DraftPayload, removedMedia: Media[]) => Promise<void>;
+  onCancel: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
 }) {
-  const [title, setTitle] = useState(service?.title ?? '')
-  const [category, setCategory] = useState(service?.category ?? categories[0] ?? 'Pestañas')
-  const [customCat, setCustomCat] = useState(false)
-  const [description, setDescription] = useState(service?.description ?? '')
-  const [price, setPrice] = useState(String(service?.price ?? ''))
-  const [visible, setVisible] = useState(service?.visible !== false)
+  const [title, setTitle] = useState(service?.title ?? "");
+  const [category, setCategory] = useState(service?.category ?? categories[0] ?? "Pestañas");
+  const [customCat, setCustomCat] = useState(false);
+  const [description, setDescription] = useState(service?.description ?? "");
+  const [price, setPrice] = useState(String(service?.price ?? ""));
+  const [visible, setVisible] = useState(service?.visible !== false);
   const [options, setOptions] = useState<{ label: string; price: string }[]>(
     (service?.options ?? []).map((o) => ({ label: o.label, price: String(o.price) })),
-  )
-  const [media, setMedia] = useState<Media[]>(service?.media ?? [])
-  const [added, setAdded] = useState<Media[]>([])
-  const [removed, setRemoved] = useState<Media[]>([])
-  const [url, setUrl] = useState('')
-  const [progress, setProgress] = useState<number | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  );
+  const [media, setMedia] = useState<Media[]>(service?.media ?? []);
+  const [added, setAdded] = useState<Media[]>([]);
+  const [removed, setRemoved] = useState<Media[]>([]);
+  const [url, setUrl] = useState("");
+  const [progress, setProgress] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const upload = async (files: FileList | null) => {
-    if (!files?.length) return
-    setError('')
+    if (!files?.length) return;
+    setError("");
     for (const file of Array.from(files)) {
       try {
-        setProgress(5)
-        const m = await saveFile(file, setProgress)
-        setMedia((cur) => [...cur, m])
-        setAdded((cur) => [...cur, m])
+        setProgress(5);
+        const m = await saveFile(file, setProgress);
+        setMedia((cur) => [...cur, m]);
+        setAdded((cur) => [...cur, m]);
       } catch (e) {
-        setError(formatFirebaseError(e))
+        setError(formatFirebaseError(e));
       }
     }
-    setProgress(null)
-  }
+    setProgress(null);
+  };
 
   const addUrl = () => {
-    const clean = url.trim()
-    if (!clean) return
-    const isVideo = /youtu\.?be|\.(mp4|webm|mov|m4v)(\?|$)/i.test(clean)
-    setMedia((cur) => [...cur, { url: clean, type: isVideo ? 'video' : 'image' }])
-    setUrl('')
-  }
+    const clean = url.trim();
+    if (!clean) return;
+    const isVideo = /youtu\.?be|\.(mp4|webm|mov|m4v)(\?|$)/i.test(clean);
+    setMedia((cur) => [...cur, { url: clean, type: isVideo ? "video" : "image" }]);
+    setUrl("");
+  };
 
   const removeMedia = (i: number) => {
-    const m = media[i]
-    setMedia(media.filter((_, k) => k !== i))
+    const m = media[i];
+    setMedia(media.filter((_, k) => k !== i));
     if (added.includes(m)) {
-      setAdded(added.filter((a) => a !== m))
-      deleteFile(m).catch(() => {})
+      setAdded(added.filter((a) => a !== m));
+      deleteFile(m).catch(() => {});
     } else {
-      setRemoved([...removed, m])
+      setRemoved([...removed, m]);
     }
-  }
+  };
 
   const makeCover = (i: number) => {
-    if (i <= 0) return
-    const next = [...media]
-    const [picked] = next.splice(i, 1)
-    next.unshift(picked)
-    setMedia(next)
-  }
+    if (i <= 0) return;
+    const next = [...media];
+    const [picked] = next.splice(i, 1);
+    next.unshift(picked);
+    setMedia(next);
+  };
 
   const handleCancel = () => {
-    added.forEach((m) => deleteFile(m).catch(() => {}))
-    onCancel()
-  }
+    added.forEach((m) => deleteFile(m).catch(() => {}));
+    onCancel();
+  };
 
   const handleSave = async () => {
-    setError('')
-    if (!title.trim()) return setError('Escribí el nombre del servicio')
-    if (!category.trim()) return setError('Elegí o escribí una categoría')
-    const numPrice = Number(price)
-    if (price === '' || isNaN(numPrice) || numPrice < 0) return setError('Ingresá un precio válido')
+    setError("");
+    if (!title.trim()) return setError("Escribí el nombre del servicio");
+    if (!category.trim()) return setError("Elegí o escribí una categoría");
+    const numPrice = Number(price);
+    if (price === "" || isNaN(numPrice) || numPrice < 0)
+      return setError("Ingresá un precio válido");
 
-    const parsedOptions: Option[] = []
+    const parsedOptions: Option[] = [];
     for (const o of options) {
-      if (!o.label.trim() && !o.price.trim()) continue
-      const p = Number(o.price)
-      if (!o.label.trim() || o.price === '' || isNaN(p) || p < 0) {
-        return setError('Revisá las variantes: cada opción necesita nombre y precio')
+      if (!o.label.trim() && !o.price.trim()) continue;
+      const p = Number(o.price);
+      if (!o.label.trim() || o.price === "" || isNaN(p) || p < 0) {
+        return setError("Revisá las variantes: cada opción necesita nombre y precio");
       }
-      parsedOptions.push({ label: o.label.trim(), price: p })
+      parsedOptions.push({ label: o.label.trim(), price: p });
     }
 
-    setSaving(true)
+    setSaving(true);
     try {
       await onSave(
         {
@@ -186,12 +221,12 @@ function InlineServiceForm({
           visible,
         },
         removed,
-      )
+      );
     } catch (e) {
-      setError(formatFirebaseError(e))
-      setSaving(false)
+      setError(formatFirebaseError(e));
+      setSaving(false);
     }
-  }
+  };
 
   return (
     <div
@@ -200,9 +235,12 @@ function InlineServiceForm({
     >
       <div className="flex items-center justify-between border-b border-yellow-600/20 pb-3">
         <span className="font-serif text-lg text-yellow-400">
-          {service ? `Editando: ${service.title}` : 'Nuevo servicio'}
+          {service ? `Editando: ${service.title}` : "Nuevo servicio"}
         </span>
-        <button onClick={handleCancel} className="rounded-lg p-1 text-gray-400 hover:bg-white/5 hover:text-white">
+        <button
+          onClick={handleCancel}
+          className="rounded-lg p-1 text-gray-400 hover:bg-white/5 hover:text-white"
+        >
           <X size={18} />
         </button>
       </div>
@@ -224,13 +262,13 @@ function InlineServiceForm({
             <button
               type="button"
               onClick={() => {
-                setCustomCat(!customCat)
-                if (!customCat) setCategory('')
-                else if (categories[0]) setCategory(categories[0])
+                setCustomCat(!customCat);
+                if (!customCat) setCategory("");
+                else if (categories[0]) setCategory(categories[0]);
               }}
               className="text-yellow-400 hover:underline"
             >
-              {customCat ? 'Elegir existente' : '+ Nueva categoría'}
+              {customCat ? "Elegir existente" : "+ Nueva categoría"}
             </button>
           </div>
           {customCat || categories.length === 0 ? (
@@ -241,8 +279,14 @@ function InlineServiceForm({
               placeholder="Nombre de la nueva categoría"
             />
           ) : (
-            <select className={`${inp} mt-1`} value={category} onChange={(e) => setCategory(e.target.value)}>
-              {!categories.includes(category) && category && <option value={category}>{category}</option>}
+            <select
+              className={`${inp} mt-1`}
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              {!categories.includes(category) && category && (
+                <option value={category}>{category}</option>
+              )}
               {categories.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -282,7 +326,7 @@ function InlineServiceForm({
           <span className="text-xs font-medium text-gray-300">Variantes de precio (opcional)</span>
           <button
             type="button"
-            onClick={() => setOptions([...options, { label: '', price: '' }])}
+            onClick={() => setOptions([...options, { label: "", price: "" }])}
             className="text-xs text-yellow-400 hover:underline"
           >
             + Agregar variante
@@ -297,7 +341,9 @@ function InlineServiceForm({
                   placeholder="Ej. Por ojo"
                   value={o.label}
                   onChange={(e) =>
-                    setOptions(options.map((x, k) => (k === idx ? { ...x, label: e.target.value } : x)))
+                    setOptions(
+                      options.map((x, k) => (k === idx ? { ...x, label: e.target.value } : x)),
+                    )
                   }
                 />
                 <input
@@ -307,7 +353,9 @@ function InlineServiceForm({
                   placeholder="Precio"
                   value={o.price}
                   onChange={(e) =>
-                    setOptions(options.map((x, k) => (k === idx ? { ...x, price: e.target.value } : x)))
+                    setOptions(
+                      options.map((x, k) => (k === idx ? { ...x, price: e.target.value } : x)),
+                    )
                   }
                 />
                 <button
@@ -326,14 +374,19 @@ function InlineServiceForm({
       {/* Fotos y videos */}
       <div className="rounded-xl border border-yellow-600/25 bg-black/40 p-3">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs font-medium text-yellow-400">Fotos y videos de demostración</span>
+          <span className="text-xs font-medium text-yellow-400">
+            Fotos y videos de demostración
+          </span>
           <span className="text-[11px] text-gray-500">{media.length} cargados</span>
         </div>
 
         {media.length > 0 && (
           <div className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
             {media.map((m, i) => (
-              <div key={i} className="group relative aspect-square overflow-hidden rounded-lg border border-white/15 bg-black">
+              <div
+                key={i}
+                className="group relative aspect-square overflow-hidden rounded-lg border border-white/15 bg-black"
+              >
                 <MediaItem m={m} className="h-full w-full object-cover" />
                 {i === 0 ? (
                   <span className="absolute bottom-1 left-1 rounded bg-yellow-500 px-1.5 py-0.5 text-[10px] font-semibold text-black">
@@ -349,7 +402,7 @@ function InlineServiceForm({
                     <Star size={10} className="inline" /> Portada
                   </button>
                 )}
-                {m.type === 'video' && (
+                {m.type === "video" && (
                   <span className="absolute left-1 top-1 rounded bg-black/80 px-1.5 text-[10px] text-yellow-400">
                     VIDEO
                   </span>
@@ -368,7 +421,7 @@ function InlineServiceForm({
 
         <div className="grid gap-2 sm:grid-cols-2">
           <label
-            className={`${btn} cursor-pointer py-2 ${progress !== null ? 'pointer-events-none opacity-50' : ''}`}
+            className={`${btn} cursor-pointer py-2 ${progress !== null ? "pointer-events-none opacity-50" : ""}`}
           >
             <Upload size={15} /> Subir foto o video (máx. 8 MB)
             <input
@@ -377,8 +430,8 @@ function InlineServiceForm({
               multiple
               hidden
               onChange={(e) => {
-                upload(e.target.files)
-                e.target.value = ''
+                upload(e.target.files);
+                e.target.value = "";
               }}
             />
           </label>
@@ -389,9 +442,9 @@ function InlineServiceForm({
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  addUrl()
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addUrl();
                 }
               }}
             />
@@ -404,9 +457,14 @@ function InlineServiceForm({
         {progress !== null && (
           <div className="mt-2">
             <div className="h-1.5 overflow-hidden rounded bg-gray-800">
-              <div className="h-full bg-yellow-500 transition-all" style={{ width: `${progress}%` }} />
+              <div
+                className="h-full bg-yellow-500 transition-all"
+                style={{ width: `${progress}%` }}
+              />
             </div>
-            <p className="mt-1 text-xs text-yellow-400">Subiendo archivo a Firestore… {progress}%</p>
+            <p className="mt-1 text-xs text-yellow-400">
+              Subiendo archivo a Firestore… {progress}%
+            </p>
           </div>
         )}
       </div>
@@ -420,13 +478,9 @@ function InlineServiceForm({
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3">
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setVisible(!visible)}
-            className={btn}
-          >
+          <button type="button" onClick={() => setVisible(!visible)} className={btn}>
             {visible ? <Eye size={15} /> : <EyeOff size={15} />}
-            {visible ? 'Visible' : 'Oculto'}
+            {visible ? "Visible" : "Oculto"}
           </button>
           {onDuplicate && (
             <button type="button" onClick={onDuplicate} className={btn}>
@@ -448,13 +502,19 @@ function InlineServiceForm({
           <button type="button" onClick={handleCancel} className={btn}>
             Cancelar
           </button>
-          <button type="button" disabled={saving || progress !== null} onClick={handleSave} className={btnGold}>
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Guardar cambios
+          <button
+            type="button"
+            disabled={saving || progress !== null}
+            onClick={handleSave}
+            className={btnGold}
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Guardar
+            cambios
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function HeroSettingsCard({
@@ -462,53 +522,58 @@ function HeroSettingsCard({
   onFlash,
   onError,
 }: {
-  settings: Settings
-  onFlash: (m: string) => void
-  onError: (m: string) => void
+  settings: Settings;
+  onFlash: (m: string) => void;
+  onError: (m: string) => void;
 }) {
-  const customSrc = useMediaSrc(settings.heroMedia)
-  const previewSrc = settings.heroMedia ? customSrc : DEFAULT_HERO_IMAGE
-  const [progress, setProgress] = useState<number | null>(null)
-  const [url, setUrl] = useState('')
-  const [busy, setBusy] = useState(false)
+  const customSrc = useMediaSrc(settings.heroMedia);
+  const previewSrc = settings.heroMedia ? customSrc : DEFAULT_HERO_IMAGE;
+  const [progress, setProgress] = useState<number | null>(null);
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const saveHero = async (nextMedia: Media | null, okText: string) => {
-    setBusy(true)
-    const previous = settings.heroMedia
+    setBusy(true);
+    const previous = settings.heroMedia;
     try {
-      await authReady
-      await withTimeout(setDoc(doc(db, 'settings', 'general'), { heroMedia: nextMedia }, { merge: true }))
+      await authReady;
+      await withTimeout(
+        setDoc(doc(db, "settings", "general"), { heroMedia: nextMedia }, { merge: true }),
+      );
       if (previous?.fileId && previous.fileId !== nextMedia?.fileId) {
-        deleteFile(previous).catch(() => {})
+        deleteFile(previous).catch(() => {});
       }
-      onFlash(okText)
+      onFlash(okText);
     } catch (e) {
-      onError(formatFirebaseError(e))
+      onError(formatFirebaseError(e));
     }
-    setBusy(false)
-  }
+    setBusy(false);
+  };
 
   const uploadHero = async (file?: File) => {
-    if (!file) return
-    onError('')
+    if (!file) return;
+    onError("");
     try {
-      setProgress(5)
-      const media = await saveFile(file, setProgress, { maxPx: 1600 })
-      setProgress(null)
-      await saveHero(media, 'Foto de fondo actualizada')
+      setProgress(5);
+      const media = await saveFile(file, setProgress, { maxPx: 1600 });
+      setProgress(null);
+      await saveHero(media, "Foto de fondo actualizada");
     } catch (e) {
-      setProgress(null)
-      onError(formatFirebaseError(e))
+      setProgress(null);
+      onError(formatFirebaseError(e));
     }
-  }
+  };
 
   const applyUrl = async () => {
-    const clean = url.trim()
-    if (!clean) return
-    const isVideo = /youtu\.?be|\.(mp4|webm|mov|m4v)(\?|$)/i.test(clean)
-    setUrl('')
-    await saveHero({ url: clean, type: isVideo ? 'video' : 'image' }, 'Fondo de inicio actualizado')
-  }
+    const clean = url.trim();
+    if (!clean) return;
+    const isVideo = /youtu\.?be|\.(mp4|webm|mov|m4v)(\?|$)/i.test(clean);
+    setUrl("");
+    await saveHero(
+      { url: clean, type: isVideo ? "video" : "image" },
+      "Fondo de inicio actualizado",
+    );
+  };
 
   return (
     <div className={`${card} space-y-3`}>
@@ -520,7 +585,7 @@ function HeroSettingsCard({
           <button
             type="button"
             disabled={busy || progress !== null}
-            onClick={() => saveHero(null, 'Se restauró la foto original')}
+            onClick={() => saveHero(null, "Se restauró la foto original")}
             className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-yellow-400"
           >
             <RotateCcw size={12} /> Restaurar original
@@ -530,10 +595,21 @@ function HeroSettingsCard({
 
       <div className="relative aspect-[16/9] overflow-hidden rounded-xl border border-yellow-600/30 bg-black">
         {previewSrc ? (
-          settings.heroMedia?.type === 'video' && !/youtu\.?be/i.test(previewSrc) ? (
-            <video src={previewSrc} muted loop autoPlay playsInline className="h-full w-full object-cover" />
+          settings.heroMedia?.type === "video" && !/youtu\.?be/i.test(previewSrc) ? (
+            <video
+              src={previewSrc}
+              muted
+              loop
+              autoPlay
+              playsInline
+              className="h-full w-full object-cover"
+            />
           ) : (
-            <img src={previewSrc} alt="Vista previa de portada" className="h-full w-full object-cover" />
+            <img
+              src={previewSrc}
+              alt="Vista previa de portada"
+              className="h-full w-full object-cover"
+            />
           )
         ) : (
           <div className="h-full w-full animate-pulse bg-white/5" />
@@ -547,15 +623,17 @@ function HeroSettingsCard({
         </div>
       </div>
 
-      <label className={`${btnGold} w-full cursor-pointer ${progress !== null || busy ? 'pointer-events-none opacity-50' : ''}`}>
+      <label
+        className={`${btnGold} w-full cursor-pointer ${progress !== null || busy ? "pointer-events-none opacity-50" : ""}`}
+      >
         <Upload size={15} /> Subir nueva foto de fondo
         <input
           type="file"
           accept="image/*,video/*"
           hidden
           onChange={(e) => {
-            uploadHero(e.target.files?.[0])
-            e.target.value = ''
+            uploadHero(e.target.files?.[0]);
+            e.target.value = "";
           }}
         />
       </label>
@@ -563,7 +641,10 @@ function HeroSettingsCard({
       {progress !== null && (
         <div>
           <div className="h-1.5 overflow-hidden rounded bg-gray-800">
-            <div className="h-full bg-yellow-500 transition-all" style={{ width: `${progress}%` }} />
+            <div
+              className="h-full bg-yellow-500 transition-all"
+              style={{ width: `${progress}%` }}
+            />
           </div>
           <p className="mt-1 text-xs text-yellow-400">Subiendo portada… {progress}%</p>
         </div>
@@ -575,14 +656,14 @@ function HeroSettingsCard({
           placeholder="O pegá el link de una imagen"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && applyUrl()}
+          onKeyDown={(e) => e.key === "Enter" && applyUrl()}
         />
         <button type="button" disabled={!url.trim() || busy} onClick={applyUrl} className={btn}>
           Usar
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 function Categories({
@@ -592,47 +673,51 @@ function Categories({
   ensureSeeded,
   onError,
 }: {
-  cats: string[]
-  services: Service[]
-  fromDb: boolean
-  ensureSeeded: () => Promise<Service[]>
-  onError: (m: string) => void
+  cats: string[];
+  services: Service[];
+  fromDb: boolean;
+  ensureSeeded: () => Promise<Service[]>;
+  onError: (m: string) => void;
 }) {
-  const [name, setName] = useState('')
-  const [editing, setEditing] = useState<string | null>(null)
-  const [val, setVal] = useState('')
-  const count = (c: string) => services.filter((s) => s.category === c).length
+  const [name, setName] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
+  const [val, setVal] = useState("");
+  const count = (c: string) => services.filter((s) => s.category === c).length;
   const saveList = (list: string[]) =>
-    withTimeout(setDoc(doc(db, 'settings', 'general'), { categories: list }, { merge: true }))
-  const run = (p: Promise<unknown>) => p.catch((e) => onError(formatFirebaseError(e)))
+    withTimeout(setDoc(doc(db, "settings", "general"), { categories: list }, { merge: true }));
+  const run = (p: Promise<unknown>) => p.catch((e) => onError(formatFirebaseError(e)));
 
   const add = () => {
-    const n = name.trim()
-    if (!n || cats.includes(n)) return
-    run(saveList([...cats, n]))
-    setName('')
-  }
+    const n = name.trim();
+    if (!n || cats.includes(n)) return;
+    run(saveList([...cats, n]));
+    setName("");
+  };
   const rename = async (old: string) => {
-    const n = val.trim()
-    setEditing(null)
-    if (!n || n === old || cats.includes(n)) return
+    const n = val.trim();
+    setEditing(null);
+    if (!n || n === old || cats.includes(n)) return;
     try {
-      const current = fromDb ? services : await ensureSeeded()
-      const b = writeBatch(db)
+      const current = fromDb ? services : await ensureSeeded();
+      const b = writeBatch(db);
       current
-        .filter((s) => s.category === old && !s.id.startsWith('seed-'))
-        .forEach((s) => b.update(doc(db, 'services', s.id), { category: n }))
-      b.set(doc(db, 'settings', 'general'), { categories: cats.map((c) => (c === old ? n : c)) }, { merge: true })
-      await withTimeout(b.commit())
+        .filter((s) => s.category === old && !s.id.startsWith("seed-"))
+        .forEach((s) => b.update(doc(db, "services", s.id), { category: n }));
+      b.set(
+        doc(db, "settings", "general"),
+        { categories: cats.map((c) => (c === old ? n : c)) },
+        { merge: true },
+      );
+      await withTimeout(b.commit());
     } catch (e) {
-      onError(formatFirebaseError(e))
+      onError(formatFirebaseError(e));
     }
-  }
+  };
   const move = (i: number, d: number) => {
-    const l = [...cats]
-    ;[l[i], l[i + d]] = [l[i + d], l[i]]
-    run(saveList(l))
-  }
+    const l = [...cats];
+    [l[i], l[i + d]] = [l[i + d], l[i]];
+    run(saveList(l));
+  };
 
   return (
     <div className={card}>
@@ -643,7 +728,7 @@ function Categories({
           placeholder="Nueva categoría"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
+          onKeyDown={(e) => e.key === "Enter" && add()}
         />
         <button onClick={add} className={btn}>
           <FolderPlus size={16} /> Agregar
@@ -658,14 +743,14 @@ function Categories({
                 autoFocus
                 value={val}
                 onChange={(e) => setVal(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && rename(c)}
+                onKeyDown={(e) => e.key === "Enter" && rename(c)}
                 onBlur={() => rename(c)}
               />
             ) : (
               <span
                 onClick={() => {
-                  setEditing(c)
-                  setVal(c)
+                  setEditing(c);
+                  setVal(c);
                 }}
                 className="flex-1 cursor-pointer truncate hover:text-yellow-300"
                 title="Clic para renombrar"
@@ -676,20 +761,24 @@ function Categories({
             <button disabled={i === 0} onClick={() => move(i, -1)} className="disabled:opacity-20">
               <ArrowUp size={15} />
             </button>
-            <button disabled={i === cats.length - 1} onClick={() => move(i, 1)} className="disabled:opacity-20">
+            <button
+              disabled={i === cats.length - 1}
+              onClick={() => move(i, 1)}
+              className="disabled:opacity-20"
+            >
               <ArrowDown size={15} />
             </button>
             <button
               onClick={() => {
-                setEditing(c)
-                setVal(c)
+                setEditing(c);
+                setVal(c);
               }}
             >
               <Pencil size={14} className="text-yellow-400" />
             </button>
             <button
               disabled={count(c) > 0}
-              title={count(c) ? 'Mové o borrá sus servicios primero' : 'Eliminar'}
+              title={count(c) ? "Mové o borrá sus servicios primero" : "Eliminar"}
               onClick={() => run(saveList(cats.filter((x) => x !== c)))}
               className="text-red-400 disabled:opacity-20"
             >
@@ -699,102 +788,108 @@ function Categories({
         ))}
       </ul>
     </div>
-  )
+  );
 }
 
 function Dashboard({ onExit }: { onExit: () => void }) {
-  const { services, settings, fromDb, error, permissionDenied, syncing, lastSync, sync } = useCatalog()
-  const [openId, setOpenId] = useState<string | null>(null) // service.id o 'new'
-  const [wa, setWa] = useState(settings.whatsapp)
-  const [banner, setBanner] = useState(settings.banner)
-  const [flash, setFlash] = useState('')
-  const [fErr, setFErr] = useState('')
-  const [copiedRules, setCopiedRules] = useState(false)
-  const [q, setQ] = useState('')
-  const [fCat, setFCat] = useState('')
-  const [fState, setFState] = useState('')
-  const [fMedia, setFMedia] = useState('')
-  const [sort, setSort] = useState('order')
+  const { services, settings, fromDb, error, permissionDenied, syncing, lastSync, sync } =
+    useCatalog();
+  const [openId, setOpenId] = useState<string | null>(null); // service.id o 'new'
+  const [wa, setWa] = useState(settings.whatsapp);
+  const [banner, setBanner] = useState(settings.banner);
+  const [flash, setFlash] = useState("");
+  const [fErr, setFErr] = useState("");
+  const [copiedRules, setCopiedRules] = useState(false);
+  const [q, setQ] = useState("");
+  const [fCat, setFCat] = useState("");
+  const [fState, setFState] = useState("");
+  const [fMedia, setFMedia] = useState("");
+  const [sort, setSort] = useState("order");
   useEffect(() => {
-    setWa(settings.whatsapp)
-    setBanner(settings.banner)
-  }, [settings])
+    setWa(settings.whatsapp);
+    setBanner(settings.banner);
+  }, [settings]);
 
   const notify = (ok: string) => {
-    setFErr('')
-    setFlash(ok)
-    setTimeout(() => setFlash(''), 2800)
-  }
+    setFErr("");
+    setFlash(ok);
+    setTimeout(() => setFlash(""), 2800);
+  };
 
-  const cats = useMemo(() => orderedCategories(services, settings), [services, settings])
-  const filtering = !!(q || fCat || fState || fMedia || sort !== 'order')
+  const cats = useMemo(() => orderedCategories(services, settings), [services, settings]);
+  const filtering = !!(q || fCat || fState || fMedia || sort !== "order");
   const list = useMemo(() => {
     let l = services.filter(
       (s) =>
         (!q || (s.title + s.description + s.category).toLowerCase().includes(q.toLowerCase())) &&
         (!fCat || s.category === fCat) &&
-        (!fState || (fState === 'visible' ? s.visible !== false : s.visible === false)) &&
-        (!fMedia || (fMedia === 'con' ? !!s.media?.length : !s.media?.length)),
-    )
-    if (sort === 'price-asc') l = [...l].sort((a, b) => a.price - b.price)
-    if (sort === 'price-desc') l = [...l].sort((a, b) => b.price - a.price)
-    if (sort === 'name') l = [...l].sort((a, b) => a.title.localeCompare(b.title))
-    return l
-  }, [services, q, fCat, fState, fMedia, sort])
+        (!fState || (fState === "visible" ? s.visible !== false : s.visible === false)) &&
+        (!fMedia || (fMedia === "con" ? !!s.media?.length : !s.media?.length)),
+    );
+    if (sort === "price-asc") l = [...l].sort((a, b) => a.price - b.price);
+    if (sort === "price-desc") l = [...l].sort((a, b) => b.price - a.price);
+    if (sort === "name") l = [...l].sort((a, b) => a.title.localeCompare(b.title));
+    return l;
+  }, [services, q, fCat, fState, fMedia, sort]);
 
   // Si la base todavia no fue inicializada y el admin edita cualquier servicio,
   // guarda automaticamente el catalogo inicial en Firestore para que editar sea inmediato.
-  const ensureSeeded = async (overrideIndex?: number, overrideData?: DraftPayload): Promise<Service[]> => {
-    await authReady
-    const batch = writeBatch(db)
-    const created: Service[] = []
+  const ensureSeeded = async (
+    overrideIndex?: number,
+    overrideData?: DraftPayload,
+  ): Promise<Service[]> => {
+    await authReady;
+    const batch = writeBatch(db);
+    const created: Service[] = [];
     seedServices.forEach((s, idx) => {
-      const ref = doc(collection(db, 'services'))
+      const ref = doc(collection(db, "services"));
       const payload =
-        idx === overrideIndex && overrideData
-          ? { ...s, ...overrideData, order: idx }
-          : s
-      batch.set(ref, payload)
-      created.push({ id: ref.id, ...payload })
-    })
-    await withTimeout(batch.commit())
-    return created
-  }
+        idx === overrideIndex && overrideData ? { ...s, ...overrideData, order: idx } : s;
+      batch.set(ref, payload);
+      created.push({ id: ref.id, ...payload });
+    });
+    await withTimeout(batch.commit());
+    return created;
+  };
 
   const run = async (p: Promise<unknown>, ok?: string) => {
     try {
-      await authReady
-      await p
-      if (ok) notify(ok)
-      else setFErr('')
+      await authReady;
+      await p;
+      if (ok) notify(ok);
+      else setFErr("");
     } catch (e) {
-      setFErr(formatFirebaseError(e))
+      setFErr(formatFirebaseError(e));
     }
-  }
+  };
 
   const saveService = async (target: Service | null, data: DraftPayload, removedMedia: Media[]) => {
-    await authReady
-    const nextOrder = services.length ? Math.max(...services.map((s) => s.order ?? 0)) + 1 : 0
+    await authReady;
+    const nextOrder = services.length ? Math.max(...services.map((s) => s.order ?? 0)) + 1 : 0;
     if (!target) {
-      if (!fromDb) await ensureSeeded()
-      await withTimeout(addDoc(collection(db, 'services'), { ...data, order: nextOrder }))
-    } else if (target.id.startsWith('seed-')) {
-      const seedIdx = Number(target.id.replace('seed-', ''))
-      await ensureSeeded(seedIdx, data)
+      if (!fromDb) await ensureSeeded();
+      await withTimeout(addDoc(collection(db, "services"), { ...data, order: nextOrder }));
+    } else if (target.id.startsWith("seed-")) {
+      const seedIdx = Number(target.id.replace("seed-", ""));
+      await ensureSeeded(seedIdx, data);
     } else {
-      await withTimeout(updateDoc(doc(db, 'services', target.id), data))
+      await withTimeout(updateDoc(doc(db, "services", target.id), data));
     }
-    removedMedia.forEach((m) => deleteFile(m).catch(() => {}))
+    removedMedia.forEach((m) => deleteFile(m).catch(() => {}));
     if (!cats.includes(data.category)) {
-      setDoc(doc(db, 'settings', 'general'), { categories: [...cats, data.category] }, { merge: true }).catch(() => {})
+      setDoc(
+        doc(db, "settings", "general"),
+        { categories: [...cats, data.category] },
+        { merge: true },
+      ).catch(() => {});
     }
-    setOpenId(null)
-    notify(target ? 'Servicio actualizado' : 'Servicio creado')
-  }
+    setOpenId(null);
+    notify(target ? "Servicio actualizado" : "Servicio creado");
+  };
 
   const toggleVisible = async (s: Service) => {
-    if (s.id.startsWith('seed-')) {
-      const idx = Number(s.id.replace('seed-', ''))
+    if (s.id.startsWith("seed-")) {
+      const idx = Number(s.id.replace("seed-", ""));
       return run(
         ensureSeeded(idx, {
           title: s.title,
@@ -805,70 +900,70 @@ function Dashboard({ onExit }: { onExit: () => void }) {
           media: s.media ?? [],
           visible: s.visible === false,
         }),
-      )
+      );
     }
-    await run(withTimeout(updateDoc(doc(db, 'services', s.id), { visible: s.visible === false })))
-  }
+    await run(withTimeout(updateDoc(doc(db, "services", s.id), { visible: s.visible === false })));
+  };
 
   const move = async (i: number, d: number) => {
-    const current = fromDb ? services : await ensureSeeded()
-    const a = current[i]
-    const c = current[i + d]
-    if (!a || !c) return
-    const b = writeBatch(db)
-    b.update(doc(db, 'services', a.id), { order: c.order })
-    b.update(doc(db, 'services', c.id), { order: a.order })
-    await run(withTimeout(b.commit()))
-  }
+    const current = fromDb ? services : await ensureSeeded();
+    const a = current[i];
+    const c = current[i + d];
+    if (!a || !c) return;
+    const b = writeBatch(db);
+    b.update(doc(db, "services", a.id), { order: c.order });
+    b.update(doc(db, "services", c.id), { order: a.order });
+    await run(withTimeout(b.commit()));
+  };
 
   const duplicate = async (s: Service) => {
     await run(
       (async () => {
-        if (!fromDb) await ensureSeeded()
+        if (!fromDb) await ensureSeeded();
         await withTimeout(
-          addDoc(collection(db, 'services'), {
+          addDoc(collection(db, "services"), {
             category: s.category,
             description: s.description,
             price: s.price,
             options: s.options ?? [],
             visible: s.visible,
-            title: s.title + ' (copia)',
+            title: s.title + " (copia)",
             order: Math.max(...services.map((x) => x.order ?? 0)) + 1,
             media: s.media?.filter((m) => !m.fileId) ?? [],
           }),
-        )
-        setOpenId(null)
+        );
+        setOpenId(null);
       })(),
-      'Servicio duplicado',
-    )
-  }
+      "Servicio duplicado",
+    );
+  };
 
   const remove = async (s: Service) => {
-    if (!confirm(`¿Eliminar "${s.title}"?`)) return
+    if (!confirm(`¿Eliminar "${s.title}"?`)) return;
     await run(
       (async () => {
-        if (s.id.startsWith('seed-')) {
-          const created = await ensureSeeded()
-          const idx = Number(s.id.replace('seed-', ''))
-          if (created[idx]) await withTimeout(deleteDoc(doc(db, 'services', created[idx].id)))
+        if (s.id.startsWith("seed-")) {
+          const created = await ensureSeeded();
+          const idx = Number(s.id.replace("seed-", ""));
+          if (created[idx]) await withTimeout(deleteDoc(doc(db, "services", created[idx].id)));
         } else {
-          await withTimeout(deleteDoc(doc(db, 'services', s.id)))
-          await Promise.all((s.media ?? []).map((m) => deleteFile(m)))
+          await withTimeout(deleteDoc(doc(db, "services", s.id)));
+          await Promise.all((s.media ?? []).map((m) => deleteFile(m)));
         }
-        setOpenId(null)
+        setOpenId(null);
       })(),
-      'Servicio eliminado',
-    )
-  }
+      "Servicio eliminado",
+    );
+  };
 
   const stats = {
     total: services.length,
     hidden: services.filter((s) => s.visible === false).length,
     withMedia: services.filter((s) => !!s.media?.length).length,
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-[#050505] bg-[radial-gradient(ellipse_at_top,#17120a,#050505_55%)] pb-16 text-white">
+    <div className="admin-shell min-h-screen bg-[#050505] bg-[radial-gradient(ellipse_at_top,#17120a,#050505_55%)] pb-16 text-white">
       <header className="sticky top-0 z-30 border-b border-yellow-600/20 bg-black/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
@@ -877,25 +972,28 @@ function Dashboard({ onExit }: { onExit: () => void }) {
             </div>
             <div>
               <h1 className="font-serif text-xl leading-none text-yellow-400">Administración</h1>
-              <p className="text-[11px] text-gray-500">Tocá cualquier servicio para editarlo directo</p>
+              <p className="text-[11px] text-gray-500">
+                Tocá cualquier servicio para editarlo directo
+              </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {lastSync && (
               <span className="hidden text-xs text-gray-500 sm:block">
-                Sincronizado {lastSync.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                Sincronizado{" "}
+                {lastSync.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
               </span>
             )}
             <button onClick={sync} disabled={syncing} className={btn}>
-              <RefreshCw size={15} className={syncing ? 'animate-spin' : ''} /> Sincronizar
+              <RefreshCw size={15} className={syncing ? "animate-spin" : ""} /> Sincronizar
             </button>
             <a href="/" className={btn}>
               <ExternalLink size={15} /> Ver sitio
             </a>
             <button
               onClick={() => {
-                sessionStorage.removeItem('admin-ok')
-                onExit()
+                sessionStorage.removeItem("admin-ok");
+                onExit();
               }}
               className={btn}
             >
@@ -906,6 +1004,20 @@ function Dashboard({ onExit }: { onExit: () => void }) {
       </header>
 
       <div className="mx-auto max-w-6xl space-y-5 px-4 pt-6">
+        <div className="admin-intro flex flex-wrap items-end justify-between gap-4 py-5">
+          <div>
+            <p className="eyebrow">Ruth Estética · Espacio de gestión</p>
+            <h2 className="mt-3 font-serif text-4xl text-stone-100 md:text-5xl">
+              Todo tu estudio, en un lugar.
+            </h2>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-stone-400">
+              Gestioná tus servicios, personalizá la portada y compartí tu formación profesional.
+            </p>
+          </div>
+          <a href="#contenido-web" className={btn}>
+            <ImageIcon size={15} /> Personalizar mi web
+          </a>
+        </div>
         {permissionDenied && (
           <div className="space-y-3 rounded-2xl border border-amber-500/50 bg-amber-500/10 p-4 text-sm text-amber-100">
             <div className="flex items-start justify-between gap-3">
@@ -916,22 +1028,22 @@ function Dashboard({ onExit }: { onExit: () => void }) {
                     Falta habilitar las reglas de Firestore para guardar fotos y cambios
                   </p>
                   <p className="mt-1 text-xs text-amber-200/80">
-                    Entrá a <b>Firebase Console → Firestore Database → Reglas</b>, pegá estas reglas y tocá{' '}
-                    <b>Publicar</b>:
+                    Entrá a <b>Firebase Console → Firestore Database → Reglas</b>, pegá estas reglas
+                    y tocá <b>Publicar</b>:
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => {
-                  navigator.clipboard.writeText(FIRESTORE_RULES_SNIPPET)
-                  setCopiedRules(true)
-                  setTimeout(() => setCopiedRules(false), 2000)
+                  navigator.clipboard.writeText(FIRESTORE_RULES_SNIPPET);
+                  setCopiedRules(true);
+                  setTimeout(() => setCopiedRules(false), 2000);
                 }}
                 className={btnGold}
               >
                 {copiedRules ? <Check size={14} /> : <Copy size={14} />}
-                {copiedRules ? 'Copiado' : 'Copiar reglas'}
+                {copiedRules ? "Copiado" : "Copiar reglas"}
               </button>
             </div>
             <pre className="overflow-x-auto rounded-lg bg-black/70 p-3 text-xs text-amber-200">
@@ -947,7 +1059,7 @@ function Dashboard({ onExit }: { onExit: () => void }) {
               <span>{fErr || error}</span>
             </div>
             {fErr && (
-              <button onClick={() => setFErr('')} className="text-red-300 hover:text-white">
+              <button onClick={() => setFErr("")} className="text-red-300 hover:text-white">
                 <X size={16} />
               </button>
             )}
@@ -963,9 +1075,9 @@ function Dashboard({ onExit }: { onExit: () => void }) {
 
         <div className="grid grid-cols-3 gap-3">
           {[
-            ['Servicios', stats.total],
-            ['Con fotos/videos', stats.withMedia],
-            ['Ocultos', stats.hidden],
+            ["Servicios", stats.total],
+            ["Con fotos/videos", stats.withMedia],
+            ["Ocultos", stats.hidden],
           ].map(([l, n]) => (
             <div key={l} className={card}>
               <p className="font-serif text-3xl text-yellow-400">{n}</p>
@@ -974,11 +1086,11 @@ function Dashboard({ onExit }: { onExit: () => void }) {
           ))}
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
-          <section className="space-y-3">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <section className="min-w-0 space-y-3">
             <div className={`${card} space-y-3`}>
               <div className="flex gap-2">
-                <div className="relative flex-1">
+                <div className="relative min-w-0 flex-1">
                   <Search size={16} className="absolute left-3 top-2.5 text-gray-500" />
                   <input
                     className={`${inp} pl-9`}
@@ -988,7 +1100,7 @@ function Dashboard({ onExit }: { onExit: () => void }) {
                   />
                 </div>
                 <button
-                  onClick={() => setOpenId(openId === 'new' ? null : 'new')}
+                  onClick={() => setOpenId(openId === "new" ? null : "new")}
                   className={btnGold}
                 >
                   <Plus size={16} /> Nuevo servicio
@@ -1020,15 +1132,15 @@ function Dashboard({ onExit }: { onExit: () => void }) {
               </div>
               {filtering && (
                 <p className="text-xs text-gray-400">
-                  Mostrando {list.length} de {services.length} servicios.{' '}
+                  Mostrando {list.length} de {services.length} servicios.{" "}
                   <button
                     className="text-yellow-400 underline"
                     onClick={() => {
-                      setQ('')
-                      setFCat('')
-                      setFState('')
-                      setFMedia('')
-                      setSort('order')
+                      setQ("");
+                      setFCat("");
+                      setFState("");
+                      setFMedia("");
+                      setSort("order");
                     }}
                   >
                     Limpiar filtros
@@ -1037,7 +1149,7 @@ function Dashboard({ onExit }: { onExit: () => void }) {
               )}
             </div>
 
-            {openId === 'new' && (
+            {openId === "new" && (
               <InlineServiceForm
                 service={null}
                 categories={cats}
@@ -1046,11 +1158,13 @@ function Dashboard({ onExit }: { onExit: () => void }) {
               />
             )}
 
-            {list.length === 0 && <p className="py-10 text-center text-gray-500">No hay servicios con esos filtros.</p>}
+            {list.length === 0 && (
+              <p className="py-10 text-center text-gray-500">No hay servicios con esos filtros.</p>
+            )}
 
             {list.map((s) => {
-              const i = services.indexOf(s)
-              const isOpen = openId === s.id
+              const i = services.indexOf(s);
+              const isOpen = openId === s.id;
               if (isOpen) {
                 return (
                   <InlineServiceForm
@@ -1062,7 +1176,7 @@ function Dashboard({ onExit }: { onExit: () => void }) {
                     onDuplicate={() => duplicate(s)}
                     onDelete={() => remove(s)}
                   />
-                )
+                );
               }
 
               return (
@@ -1070,7 +1184,7 @@ function Dashboard({ onExit }: { onExit: () => void }) {
                   key={s.id}
                   onClick={() => setOpenId(s.id)}
                   className={`group flex cursor-pointer items-center gap-3 ${card} !p-3 transition hover:border-yellow-500/60 hover:bg-white/[0.06] ${
-                    s.visible === false ? 'opacity-55' : ''
+                    s.visible === false ? "opacity-55" : ""
                   }`}
                 >
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-black text-gray-600">
@@ -1081,14 +1195,20 @@ function Dashboard({ onExit }: { onExit: () => void }) {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium group-hover:text-yellow-300">{s.title}</p>
+                    <p className="truncate text-sm font-medium group-hover:text-yellow-300">
+                      {s.title}
+                    </p>
                     <p className="truncate text-xs text-gray-400">
-                      {s.category} · <span className="font-medium text-yellow-400">{money(s.price)}</span> ·{' '}
-                      {s.media?.length ? `${s.media.length} archivo(s)` : 'sin muestras'}
-                      {s.visible === false && ' · oculto'}
+                      {s.category} ·{" "}
+                      <span className="font-medium text-yellow-400">{money(s.price)}</span> ·{" "}
+                      {s.media?.length ? `${s.media.length} archivo(s)` : "sin muestras"}
+                      {s.visible === false && " · oculto"}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-400" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="flex items-center gap-2 text-gray-400"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {!filtering && (
                       <>
                         <button
@@ -1110,7 +1230,7 @@ function Dashboard({ onExit }: { onExit: () => void }) {
                       </>
                     )}
                     <button
-                      title={s.visible === false ? 'Mostrar en el sitio' : 'Ocultar del sitio'}
+                      title={s.visible === false ? "Mostrar en el sitio" : "Ocultar del sitio"}
                       onClick={() => toggleVisible(s)}
                       className="rounded p-1 hover:bg-white/10 hover:text-white"
                     >
@@ -1121,12 +1241,16 @@ function Dashboard({ onExit }: { onExit: () => void }) {
                     </span>
                   </div>
                 </div>
-              )
+              );
             })}
           </section>
 
-          <aside className="space-y-5">
+          <aside id="contenido-web" className="min-w-0 scroll-mt-28 space-y-5">
             <HeroSettingsCard settings={settings} onFlash={notify} onError={setFErr} />
+            <CredentialsManager
+              key={JSON.stringify(settings.credentials ?? null)}
+              settings={settings}
+            />
 
             <div className={`${card} space-y-3`}>
               <p className="text-sm font-medium text-yellow-400">Datos generales</p>
@@ -1154,12 +1278,12 @@ function Dashboard({ onExit }: { onExit: () => void }) {
                   run(
                     withTimeout(
                       setDoc(
-                        doc(db, 'settings', 'general'),
-                        { whatsapp: wa.replace(/\D/g, ''), banner },
+                        doc(db, "settings", "general"),
+                        { whatsapp: wa.replace(/\D/g, ""), banner },
                         { merge: true },
                       ),
                     ),
-                    'Datos generales guardados',
+                    "Datos generales guardados",
                   )
                 }
               >
@@ -1178,11 +1302,11 @@ function Dashboard({ onExit }: { onExit: () => void }) {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default function Admin() {
-  const expected = import.meta.env.VITE_ADMIN_PASSWORD
-  const [ok, setOk] = useState(!!expected && sessionStorage.getItem('admin-ok') === expected)
-  return ok ? <Dashboard onExit={() => setOk(false)} /> : <Login onOk={() => setOk(true)} />
+  const expected = import.meta.env.VITE_ADMIN_PASSWORD;
+  const [ok, setOk] = useState(!!expected && sessionStorage.getItem("admin-ok") === expected);
+  return ok ? <Dashboard onExit={() => setOk(false)} /> : <Login onOk={() => setOk(true)} />;
 }

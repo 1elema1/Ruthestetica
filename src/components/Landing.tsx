@@ -1,15 +1,30 @@
-import { useMemo, useState } from 'react'
-import { Sparkles, ShieldCheck, Clock, Minus, Play, Plus, ShoppingBag, Trash2, X, Images, MessageCircle } from 'lucide-react'
-import { orderedCategories, useCatalog } from '../useCatalog'
-import { DEFAULT_HERO_IMAGE, money } from '../data'
-import { useMediaSrc } from '../mediaStore'
-import type { Media, Service } from '../types'
-import { Lightbox, MediaItem, youtubeId } from './MediaView'
+import { useMemo, useState } from "react";
+import {
+  Sparkles,
+  ShieldCheck,
+  Clock,
+  Minus,
+  Play,
+  Plus,
+  ShoppingBag,
+  Trash2,
+  X,
+  Images,
+  MessageCircle,
+  Wallet,
+} from "lucide-react";
+import { orderedCategories, useCatalog } from "../useCatalog";
+import { DEFAULT_HERO_IMAGE, money } from "../data";
+import { useMediaSrc } from "../mediaStore";
+import type { Media, Service } from "../types";
+import { Lightbox, MediaItem, youtubeId } from "./MediaView";
+import { CredentialsSection } from "./Credentials";
+import { DEPOSIT_NOTICE } from "../booking";
 
-type Line = { key: string; title: string; price: number; qty: number }
+type Line = { key: string; title: string; price: number; qty: number };
 
 function HeroBackground({ media }: { media?: Media | null }) {
-  const customSrc = useMediaSrc(media)
+  const customSrc = useMediaSrc(media);
 
   if (!media) {
     return (
@@ -18,15 +33,17 @@ function HeroBackground({ media }: { media?: Media | null }) {
         alt="Extensión de pestañas profesional"
         className="absolute inset-0 -z-20 h-full w-full object-cover"
       />
-    )
+    );
   }
 
   if (!customSrc) {
-    return <div className="absolute inset-0 -z-20 bg-[radial-gradient(ellipse_at_top_right,#261d0a,#050505_70%)]" />
+    return (
+      <div className="absolute inset-0 -z-20 bg-[radial-gradient(ellipse_at_top_right,#261d0a,#050505_70%)]" />
+    );
   }
 
-  if (media.type === 'video') {
-    const yt = youtubeId(customSrc)
+  if (media.type === "video") {
+    const yt = youtubeId(customSrc);
     if (yt) {
       return (
         <img
@@ -34,7 +51,7 @@ function HeroBackground({ media }: { media?: Media | null }) {
           alt="Portada Ruth Estética"
           className="absolute inset-0 -z-20 h-full w-full object-cover"
         />
-      )
+      );
     }
     return (
       <video
@@ -45,7 +62,7 @@ function HeroBackground({ media }: { media?: Media | null }) {
         playsInline
         className="absolute inset-0 -z-20 h-full w-full object-cover"
       />
-    )
+    );
   }
 
   return (
@@ -54,56 +71,60 @@ function HeroBackground({ media }: { media?: Media | null }) {
       alt="Portada Ruth Estética"
       className="absolute inset-0 -z-20 h-full w-full object-cover transition-opacity duration-500"
     />
-  )
+  );
 }
 
 export default function Landing() {
-  const { services, settings } = useCatalog()
-  const [cat, setCat] = useState('Todos')
-  const [cart, setCart] = useState<Line[]>([])
-  const [open, setOpen] = useState(false)
-  const [name, setName] = useState('')
-  const [when, setWhen] = useState('')
-  const [lightbox, setLightbox] = useState<Service | null>(null)
-  const [choice, setChoice] = useState<Record<string, number>>({})
+  const { services, settings } = useCatalog();
+  const [cat, setCat] = useState("Todos");
+  const [cart, setCart] = useState<Line[]>([]);
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [when, setWhen] = useState("");
+  const [lightbox, setLightbox] = useState<Service | null>(null);
+  const [choice, setChoice] = useState<Record<string, number>>({});
 
-  const visible = services.filter((s) => s.visible !== false)
+  const visible = services.filter((s) => s.visible !== false);
   const cats = useMemo(
     () => orderedCategories(visible, settings).filter((c) => visible.some((s) => s.category === c)),
     [visible, settings],
-  )
-  const shown = cat === 'Todos' ? visible : visible.filter((s) => s.category === cat)
-  const count = cart.reduce((a, l) => a + l.qty, 0)
-  const total = cart.reduce((a, l) => a + l.qty * l.price, 0)
+  );
+  const shown = cat === "Todos" ? visible : visible.filter((s) => s.category === cat);
+  const count = cart.reduce((a, l) => a + l.qty, 0);
+  const total = cart.reduce((a, l) => a + l.qty * l.price, 0);
 
   const add = (s: Service) => {
-    const o = s.options?.length ? s.options[choice[s.id] ?? 0] : null
-    const key = s.id + (o ? o.label : '')
-    const title = o ? `${s.title} (${o.label})` : s.title
-    const price = o ? o.price : s.price
+    const o = s.options?.length ? s.options[choice[s.id] ?? 0] : null;
+    const key = s.id + (o ? o.label : "");
+    const title = o ? `${s.title} (${o.label})` : s.title;
+    const price = o ? o.price : s.price;
     setCart((c) =>
       c.find((l) => l.key === key)
         ? c.map((l) => (l.key === key ? { ...l, qty: l.qty + 1 } : l))
         : [...c, { key, title, price, qty: 1 }],
-    )
-  }
+    );
+  };
   const setQty = (key: string, d: number) =>
-    setCart((c) => c.map((l) => (l.key === key ? { ...l, qty: l.qty + d } : l)).filter((l) => l.qty > 0))
+    setCart((c) =>
+      c.map((l) => (l.key === key ? { ...l, qty: l.qty + d } : l)).filter((l) => l.qty > 0),
+    );
 
   const send = () => {
     const lines = cart
-      .map((l) => `• ${l.title}${l.qty > 1 ? ` x${l.qty}` : ''} - ${money(l.price * l.qty)}`)
-      .join('\n')
-    const msg = `✨ *NUEVA RESERVA DE TURNO - RUTH ESTÉTICA* ✨\n\n👤 *Cliente:* ${name || '-'}\n📅 *Fecha/Hora tentativa:* ${when || '-'}\n\n📋 *Servicios Seleccionados:*\n${lines}\n\n💰 *TOTAL ESTIMADO:* ${money(total)}\n\nA la espera de confirmación de disponibilidad. ¡Muchas gracias!`
-    window.open(`https://wa.me/${settings.whatsapp}?text=${encodeURIComponent(msg)}`, '_blank')
-  }
+      .map((l) => `• ${l.title}${l.qty > 1 ? ` x${l.qty}` : ""} - ${money(l.price * l.qty)}`)
+      .join("\n");
+    const msg = `✨ *NUEVA RESERVA DE TURNO - RUTH ESTÉTICA* ✨\n\n👤 *Cliente:* ${name || "-"}\n📅 *Fecha/Hora tentativa:* ${when || "-"}\n\n📋 *Servicios Seleccionados:*\n${lines}\n\n💰 *TOTAL ESTIMADO:* ${money(total)}\n\n*SEÑA PARA CONFIRMAR EL TURNO: $8.000*\n${DEPOSIT_NOTICE}\n\nA la espera de confirmación de disponibilidad. ¡Muchas gracias!`;
+    window.open(`https://wa.me/${settings.whatsapp}?text=${encodeURIComponent(msg)}`, "_blank");
+  };
 
-  const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+  const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 
   return (
-    <div className="min-h-screen bg-[#050505] text-[#F9FAFB]">
+    <div className="site-shell min-h-screen bg-[#050505] text-[#F9FAFB]">
       {settings.banner && (
-        <div className="bg-yellow-600/90 px-4 py-2 text-center text-sm font-medium text-black">{settings.banner}</div>
+        <div className="bg-yellow-600/90 px-4 py-2 text-center text-sm font-medium text-black">
+          {settings.banner}
+        </div>
       )}
       <header className="sticky top-0 z-40 border-b border-yellow-600/20 bg-black/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
@@ -111,19 +132,21 @@ export default function Landing() {
             <div className="flex h-10 w-10 items-center justify-center rounded-full border border-yellow-500 font-serif text-lg text-yellow-400">
               RB
             </div>
-            <span className="hidden font-serif text-lg tracking-wide text-yellow-400 sm:block">Ruth Estética</span>
+            <span className="hidden font-serif text-lg tracking-wide text-yellow-400 sm:block">
+              Ruth Estética
+            </span>
           </div>
           <nav className="hidden gap-5 text-sm text-gray-300 md:flex">
             {cats.slice(0, 5).map((c) => (
               <button
                 key={c}
                 onClick={() => {
-                  setCat(c)
-                  go('servicios')
+                  setCat(c);
+                  go("servicios");
                 }}
                 className="hover:text-yellow-400"
               >
-                {c.replace(/ \(.*\)/, '')}
+                {c.replace(/ \(.*\)/, "")}
               </button>
             ))}
           </nav>
@@ -141,7 +164,7 @@ export default function Landing() {
         </div>
       </header>
 
-      <section className="relative isolate overflow-hidden">
+      <section className="hero-section relative isolate overflow-hidden">
         <HeroBackground media={settings.heroMedia} />
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black via-black/80 to-black/30" />
         <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-[#050505] to-transparent" />
@@ -161,13 +184,13 @@ export default function Landing() {
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
             <button
-              onClick={() => go('servicios')}
+              onClick={() => go("servicios")}
               className="rounded-full bg-gradient-to-r from-[#D4AF37] to-[#E5C158] px-8 py-3.5 font-medium text-black shadow-[0_0_30px_rgba(212,175,55,0.35)] transition hover:shadow-[0_0_50px_rgba(212,175,55,0.6)]"
             >
               Ver Servicios y Reservar
             </button>
             <button
-              onClick={() => go('por-que')}
+              onClick={() => go("por-que")}
               className="rounded-full border border-white/25 px-8 py-3.5 text-white transition hover:border-yellow-500 hover:text-yellow-400"
             >
               Conocer más
@@ -176,21 +199,25 @@ export default function Landing() {
         </div>
       </section>
 
+      {settings.credentials?.position === "start" && (
+        <CredentialsSection value={settings.credentials} />
+      )}
+
       <section id="por-que" className="mx-auto grid max-w-6xl gap-4 px-4 py-16 md:grid-cols-3">
         {[
           [
             Sparkles,
-            'Acabado de lujo',
-            'Técnicas modernas y materiales premium para un resultado natural y duradero.',
+            "Acabado de lujo",
+            "Técnicas modernas y materiales premium para un resultado natural y duradero.",
           ],
           [
             ShieldCheck,
-            'Cuidado profesional',
-            'Higiene, productos de calidad y atención personalizada en cada sesión.',
+            "Cuidado profesional",
+            "Higiene, productos de calidad y atención personalizada en cada sesión.",
           ],
-          [Clock, 'Reservá en minutos', 'Armá tu pedido y enviá la reserva directo por WhatsApp.'],
+          [Clock, "Reservá en minutos", "Armá tu pedido y enviá la reserva directo por WhatsApp."],
         ].map(([Icon, t, d]) => {
-          const I = Icon as typeof Sparkles
+          const I = Icon as typeof Sparkles;
           return (
             <div
               key={t as string}
@@ -202,24 +229,26 @@ export default function Landing() {
               <h3 className="font-serif text-xl text-[#F9FAFB]">{t as string}</h3>
               <p className="mt-2 text-sm text-gray-400">{d as string}</p>
             </div>
-          )
+          );
         })}
       </section>
 
       <section id="servicios" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-24">
         <div className="mb-10 text-center">
           <p className="text-xs uppercase tracking-[0.4em] text-yellow-600">Catálogo</p>
-          <h2 className="mt-2 font-serif text-4xl text-[#F9FAFB] md:text-5xl">Nuestros servicios</h2>
+          <h2 className="mt-2 font-serif text-4xl text-[#F9FAFB] md:text-5xl">
+            Nuestros servicios
+          </h2>
         </div>
         <div className="mb-8 flex flex-wrap justify-center gap-2">
-          {['Todos', ...cats].map((c) => (
+          {["Todos", ...cats].map((c) => (
             <button
               key={c}
               onClick={() => setCat(c)}
               className={`rounded-full border px-4 py-1.5 text-sm transition ${
                 cat === c
-                  ? 'border-yellow-500 bg-yellow-500 text-black'
-                  : 'border-yellow-600/30 text-gray-300 hover:border-yellow-500'
+                  ? "border-yellow-500 bg-yellow-500 text-black"
+                  : "border-yellow-600/30 text-gray-300 hover:border-yellow-500"
               }`}
             >
               {c}
@@ -228,11 +257,11 @@ export default function Landing() {
         </div>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((s) => {
-            const media = s.media ?? []
+            const media = s.media ?? [];
             return (
               <article
                 key={s.id}
-                className="flex flex-col overflow-hidden rounded-2xl border border-yellow-600/25 bg-gradient-to-b from-white/[0.06] to-white/[0.02] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:border-yellow-500/60 hover:shadow-[0_10px_40px_-10px_rgba(212,175,55,0.25)]"
+                className="service-card flex flex-col overflow-hidden rounded-2xl border border-yellow-600/25 bg-gradient-to-b from-white/[0.06] to-white/[0.02] backdrop-blur-md"
               >
                 {media.length > 0 && (
                   <button
@@ -243,7 +272,7 @@ export default function Landing() {
                       m={media[0]}
                       className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                     />
-                    {media[0].type === 'video' && (
+                    {media[0].type === "video" && (
                       <span className="absolute inset-0 flex items-center justify-center bg-black/30">
                         <Play className="fill-yellow-400 text-yellow-400" size={36} />
                       </span>
@@ -254,7 +283,9 @@ export default function Landing() {
                   </button>
                 )}
                 <div className="flex flex-1 flex-col p-5">
-                  <span className="text-xs uppercase tracking-widest text-yellow-600">{s.category}</span>
+                  <span className="text-xs uppercase tracking-widest text-yellow-600">
+                    {s.category}
+                  </span>
                   <h3 className="mt-1 font-serif text-xl text-[#F9FAFB]">{s.title}</h3>
                   {s.description && <p className="mt-2 text-sm text-gray-300">{s.description}</p>}
                   {!!s.options?.length && (
@@ -265,8 +296,8 @@ export default function Landing() {
                           onClick={() => setChoice({ ...choice, [s.id]: i })}
                           className={`rounded-full border px-3 py-1 text-xs ${
                             (choice[s.id] ?? 0) === i
-                              ? 'border-yellow-500 bg-yellow-500/15 text-yellow-300'
-                              : 'border-gray-700 text-gray-400'
+                              ? "border-yellow-500 bg-yellow-500/15 text-yellow-300"
+                              : "border-gray-700 text-gray-400"
                           }`}
                         >
                           {o.label}
@@ -287,21 +318,30 @@ export default function Landing() {
                   </div>
                 </div>
               </article>
-            )
+            );
           })}
         </div>
       </section>
 
-      <footer className="border-t border-yellow-600/20 py-8 text-center text-sm text-gray-500">
+      {settings.credentials?.position !== "start" && (
+        <CredentialsSection value={settings.credentials} />
+      )}
+
+      <footer className="site-footer border-t border-yellow-600/20 py-12 text-center text-sm text-gray-500">
         <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-yellow-600/60 font-serif text-yellow-500">
           RB
         </div>
-        <p className="mb-2 font-serif text-lg text-yellow-500">Ruth Estética</p>
-        © Ruth Estética · <a href="/admin" className="text-gray-600 hover:text-yellow-500">Admin</a>
+        <p className="mb-2 font-serif text-lg text-yellow-500">Ruth Estética</p>© Ruth Estética ·{" "}
+        <a href="/admin" className="text-gray-600 hover:text-yellow-500">
+          Admin
+        </a>
       </footer>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/70" onClick={() => setOpen(false)}>
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/70"
+          onClick={() => setOpen(false)}
+        >
           <aside
             className="flex h-full w-full max-w-md flex-col border-l border-yellow-600/30 bg-[#0A0A0A] p-5"
             onClick={(e) => e.stopPropagation()}
@@ -313,7 +353,9 @@ export default function Landing() {
               </button>
             </div>
             <div className="flex-1 space-y-3 overflow-y-auto">
-              {cart.length === 0 && <p className="py-10 text-center text-gray-500">Todavía no agregaste servicios.</p>}
+              {cart.length === 0 && (
+                <p className="py-10 text-center text-gray-500">Todavía no agregaste servicios.</p>
+              )}
               {cart.map((l) => (
                 <div key={l.key} className="rounded-xl border border-yellow-600/20 p-3">
                   <p className="text-sm">{l.title}</p>
@@ -334,14 +376,17 @@ export default function Landing() {
                       </button>
                     </div>
                     <span className="text-yellow-400">{money(l.price * l.qty)}</span>
-                    <button onClick={() => setQty(l.key, -l.qty)} className="text-gray-500 hover:text-red-400">
+                    <button
+                      onClick={() => setQty(l.key, -l.qty)}
+                      className="text-gray-500 hover:text-red-400"
+                    >
                       <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="space-y-3 border-t border-yellow-600/20 pt-4">
+            <div className="max-h-[60dvh] shrink-0 space-y-3 overflow-y-auto border-t border-yellow-600/20 pt-4">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -359,6 +404,15 @@ export default function Landing() {
                 <span>Total</span>
                 <span className="font-semibold text-yellow-400">{money(total)}</span>
               </div>
+              <div className="deposit-notice flex items-start gap-3 rounded-xl p-4" role="note">
+                <Wallet size={21} className="mt-0.5 shrink-0 text-[#d6bc7f]" />
+                <div>
+                  <p className="text-sm font-medium text-[#eddaab]">
+                    Seña para confirmar tu turno: $8.000
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-stone-300">{DEPOSIT_NOTICE}</p>
+                </div>
+              </div>
               <button
                 disabled={!cart.length}
                 onClick={send}
@@ -370,7 +424,13 @@ export default function Landing() {
           </aside>
         </div>
       )}
-      {lightbox && <Lightbox media={lightbox.media!} title={lightbox.title} onClose={() => setLightbox(null)} />}
+      {lightbox && (
+        <Lightbox
+          media={lightbox.media!}
+          title={lightbox.title}
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </div>
-  )
+  );
 }
