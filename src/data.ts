@@ -1,5 +1,8 @@
 import type { Service, Settings } from './types'
 
+export const DEFAULT_HERO_IMAGE =
+  'https://images.unsplash.com/photo-1674049406467-824ea37c7184?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1800'
+
 const raw: [string, string, number][] = [
   ['Pestañas', 'Pestañas Pelo a Pelo', 29000],
   ['Pestañas', 'Pestañas Efecto Kimel', 29500],
@@ -49,6 +52,7 @@ export const defaultSettings: Settings = {
   whatsapp: import.meta.env.VITE_WHATSAPP_PHONE || '5493510000000',
   banner: '',
   categories: [],
+  heroMedia: null,
 }
 
 export const money = (n: number) => '$' + n.toLocaleString('es-AR')

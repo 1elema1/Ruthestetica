@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { collection, doc, getDoc, getDocs, getDocsFromServer, onSnapshot } from 'firebase/firestore'
-import { db } from './firebase'
+import { authReady, db, formatFirebaseError } from './firebase'
 import { defaultSettings, seedServices } from './data'
 import type { Service, Settings } from './types'
 
@@ -12,8 +12,17 @@ export function useCatalog() {
   const [fromDb, setFromDb] = useState(false)
   const [settings, setSettings] = useState<Settings>(defaultSettings)
   const [error, setError] = useState('')
+  const [permissionDenied, setPermissionDenied] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [lastSync, setLastSync] = useState<Date | null>(null)
+
+  const handleErr = (e: unknown) => {
+    const code = (e as { code?: string })?.code ?? ''
+    const raw = e instanceof Error ? e.message : String(e)
+    const denied = code === 'permission-denied' || /Missing or insufficient permissions/i.test(raw)
+    setPermissionDenied(denied)
+    setError(formatFirebaseError(e))
+  }
 
   const apply = (docs: { id: string; data: () => unknown }[], keepError = false) => {
     if (!docs.length) {
@@ -24,49 +33,73 @@ export function useCatalog() {
       setFromDb(true)
     }
     setLastSync(new Date())
-    if (!keepError) setError('')
+    if (!keepError) {
+      setError('')
+      setPermissionDenied(false)
+    }
   }
 
   useEffect(() => {
-    const u1 = onSnapshot(collection(db, 'services'), (snap) => apply(snap.docs), (e) => setError(e.code === 'permission-denied' ? 'Firestore rechazó la lectura (permission-denied). Revisá las reglas.' : 'Sin conexión con Firebase: ' + e.message))
-    const u2 = onSnapshot(
-      doc(db, 'settings', 'general'),
-      (d) => d.exists() && setSettings({ ...defaultSettings, ...(d.data() as Settings) }),
-      (e) => setError(e.message),
-    )
+    let u1: (() => void) | undefined
+    let u2: (() => void) | undefined
+    let cancelled = false
+
+    authReady.then(() => {
+      if (cancelled) return
+      u1 = onSnapshot(collection(db, 'services'), (snap) => apply(snap.docs), handleErr)
+      u2 = onSnapshot(
+        doc(db, 'settings', 'general'),
+        (d) => {
+          if (d.exists()) setSettings({ ...defaultSettings, ...(d.data() as Settings) })
+        },
+        handleErr,
+      )
+    })
+
     return () => {
-      u1()
-      u2()
+      cancelled = true
+      u1?.()
+      u2?.()
     }
   }, [])
 
-  // Fuerza una lectura directa del servidor (ignora la cache local)
+  // Sincroniza desde el servidor con fallback seguro a cache local sin romper la UI
   const sync = useCallback(async () => {
     setSyncing(true)
+    await authReady
     try {
       let docs
+      let usedCache = false
       try {
         docs = (await getDocsFromServer(collection(db, 'services'))).docs
       } catch (e) {
-        const code = (e as { code?: string }).code
-        if (code === 'permission-denied') throw new Error('Firestore rechazó la lectura (permission-denied). Habilitá "allow read, write: if true;" en las reglas de Firestore.')
-        // Sin conexion directa: usar lo ultimo disponible (cache / listener en vivo)
+        const code = (e as { code?: string })?.code ?? ''
+        if (code === 'permission-denied') throw e
         docs = (await getDocs(collection(db, 'services'))).docs
-        setError('No hay conexión directa con Firebase; se muestran los últimos datos guardados en este navegador.')
-        apply(docs, true)
-        setSyncing(false)
-        return
+        usedCache = true
       }
-      apply(docs)
-      const g = await getDoc(doc(db, 'settings', 'general'))
-      if (g.exists()) setSettings({ ...defaultSettings, ...(g.data() as Settings) })
+
+      try {
+        const g = await getDoc(doc(db, 'settings', 'general'))
+        if (g.exists()) setSettings({ ...defaultSettings, ...(g.data() as Settings) })
+      } catch (e) {
+        const code = (e as { code?: string })?.code ?? ''
+        if (code === 'permission-denied') throw e
+      }
+
+      if (usedCache) {
+        setError('Sin conexión directa con el servidor; mostrando datos guardados en este navegador.')
+        apply(docs, true)
+      } else {
+        apply(docs)
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo sincronizar')
+      handleErr(e)
     }
     setSyncing(false)
   }, [])
 
-  return { services, settings, fromDb, error, syncing, lastSync, sync }
+  return { services, settings, fromDb, error, permissionDenied, syncing, lastSync, sync }
 }
 
 // Categorias: primero el orden guardado en settings, luego las que aparezcan en servicios
